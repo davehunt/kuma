@@ -25,6 +25,7 @@ from django.http import (HttpResponse, HttpResponseRedirect,
 from django.http.multipartparser import MultiPartParser
 from django.shortcuts import (get_object_or_404, get_list_or_404,
                               redirect, render)
+from django.utils.http import urlunquote_plus
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import (require_GET, require_POST,
                                           require_http_methods, condition)
@@ -44,7 +45,7 @@ from kuma.contentflagging.models import ContentFlag, FLAG_NOTIFICATIONS
 
 from kuma.attachments.forms import AttachmentRevisionForm
 from kuma.attachments.models import Attachment
-from kuma.attachments.utils import attachments_json
+from kuma.attachments.utils import attachments_json, full_attachment_url
 from kuma.core.cache import memcache
 from kuma.core.decorators import (never_cache, login_required,
                                   permission_required, superuser_required)
@@ -402,7 +403,7 @@ def _document_raw(request, doc, doc_html, rendering_params):
     response = HttpResponse(doc_html)
     response['X-Frame-Options'] = 'Allow'
     response['X-Robots-Tag'] = 'noindex'
-    absolute_url = doc.get_absolute_url()
+    absolute_url = urlunquote_plus(doc.get_absolute_url())
 
     if absolute_url in (config.KUMA_CUSTOM_CSS_PATH,
                         config.KUMA_CUSTOM_SAMPLE_CSS_PATH):
@@ -525,15 +526,6 @@ def document(request, document_slug, document_locale):
     if rendering_params['raw']:
         return _document_raw(request, doc, doc_html, rendering_params)
 
-    # Get the contributors. (To avoid this query, we could render the
-    # the contributors right into the Document's html field.)
-    # NOTE: .only() avoids a memcache object-too-large error for large wiki
-    # pages when an attempt is made to cache all revisions
-    contributors = set([r.creator for r in doc.revisions
-                                              .filter(is_approved=True)
-                                              .only('creator')
-                                              .select_related('creator')])
-
     # TODO: Port this kitsune feature over, eventually:
     #     https://github.com/jsocol/kitsune/commit/
     #       f1ebb241e4b1d746f97686e65f49e478e28d89f2
@@ -568,7 +560,6 @@ def document(request, document_slug, document_locale):
         'quick_links_html': quick_links_html,
         'zone_subnav_html': zone_subnav_html,
         'body_html': body_html,
-        'contributors': contributors,
         'fallback_reason': fallback_reason,
         'kumascript_errors': ks_errors,
         'render_raw_fallback': rendering_params['render_raw_fallback'],
@@ -1896,14 +1887,13 @@ def toc_view(request, document_slug=None, document_locale=None):
 @xframe_options_exempt
 @process_document_path
 def code_sample(request, document_slug, document_locale, sample_id):
-    """Extract a code sample from a document and render it as a standalone
-    HTML document"""
-
+    """
+    Extract a code sample from a document and render it as a standalone
+    HTML document
+    """
     # Restrict rendering of live code samples to specified hosts
-    full_address = (''.join(('http', ('', 's')[request.is_secure()], '://',
-                    request.META.get('HTTP_HOST'), request.path)))
-
-    if not re.search(config.KUMA_WIKI_IFRAME_ALLOWED_HOSTS, full_address):
+    if not re.search(config.KUMA_WIKI_IFRAME_ALLOWED_HOSTS,
+                     request.build_absolute_uri()):
         raise PermissionDenied
 
     document = get_object_or_404(Document, slug=document_slug,
@@ -1911,6 +1901,29 @@ def code_sample(request, document_slug, document_locale, sample_id):
     data = document.extract_code_sample(sample_id)
     data['document'] = document
     return render(request, 'wiki/code_sample.html', data)
+
+
+@require_GET
+@allow_CORS_GET
+@xframe_options_exempt
+@process_document_path
+def raw_code_sample_file(request, document_slug, document_locale,
+                         sample_id, attachment_id, filename):
+    """
+    A view redirecting to the real file serving view of the attachments app.
+    This exists so the writers can use relative paths to files in the
+    code samples instead of hard coding he file serving URLs.
+
+    For example on a code sample with the URL:
+
+    https://mdn.mozillademos.org/fr/docs/Web/CSS/Tools/Outil_Selecteur_Couleurs_CSS$samples/ColorPIcker_Tool
+
+    This would allow having files referred to in the CSS as::
+
+       url("files/6067/canvas-controls.png")
+
+    """
+    return redirect(full_attachment_url(attachment_id, filename))
 
 
 @require_POST
@@ -2151,7 +2164,7 @@ def quick_review(request, document_slug, document_locale):
     if messages:
         # We approved something, make the new revision.
         new_rev = doc.revise(request.user,
-                             data={'summary': ' '.join(messages)})
+                             data={'summary': ' '.join(messages), 'comment': ' '.join(messages)})
         if new_tags:
             new_rev.review_tags.set(*new_tags)
         else:

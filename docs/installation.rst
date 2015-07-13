@@ -45,13 +45,21 @@ Install and run everything
        $ sudo apt-get update
        $ sudo apt-get install ansible
 
+   Fedora / RPM-based distribution::
+
+       $ sudo dnf install ansible.noarch
+
+   For previous versions based on yum, use::
+
+       $ sudo yum install ansible.noarch
+
    Windows:
 
    Installation on Windows is complicated but we strive to make it easier
    in the future. Until then see this blog post for how to
    `Run Vagrant with Ansible Provisioning on Windows <http://www.azavea.com/blogs/labs/2014/10/running-vagrant-with-ansible-provisioning-on-windows/>`_
 
-#. Fork the project. (See `GitHub <https://help.github.com/articles/fork-a-repo#step-1-fork-the-spoon-knife-repository>`_ and `Webdev Bootcamp <http://mozweb.readthedocs.org/en/latest/git.html#working-on-projects>`_)
+#. Fork the project. (See `GitHub <https://help.github.com/articles/fork-a-repo#step-1-fork-the-spoon-knife-repository>`)
 
 #. Clone your fork of Kuma and update submodules::
 
@@ -309,9 +317,6 @@ To enable GitHub authentication ...
 * Client id: <your GitHub App Client ID>
 * Secret key: <your GitHub App Client Secret>
 * Sites: example.com -> Chosen sites
-
-GitHub auth is also (temporarily) behind a waffle flag. So, :doc:`add a waffle
-flag <feature-toggles>` called ``github_login`` and set "Everyone" to "Yes".
 
 Now you can sign in with GitHub at https://developer-local.allizom.org/
 
