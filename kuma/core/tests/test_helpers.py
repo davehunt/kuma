@@ -201,7 +201,7 @@ class TestDateTimeFormat(UserTestCase):
 
         # Convert tzvalue to user timezone
         default_tz = timezone(settings.TIME_ZONE)
-        user_tz = user.profile.timezone
+        user_tz = user.timezone
         tzvalue = default_tz.localize(value_test)
         tzvalue = user_tz.normalize(tzvalue.astimezone(user_tz))
 

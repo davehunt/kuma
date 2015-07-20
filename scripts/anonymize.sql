@@ -52,6 +52,8 @@ UPDATE auth_user SET
     email = CONCAT(MD5(CONCAT(email, @common_hash_secret)), '@example.com'),
     first_name = ROUND(RAND()*1000000),
     last_name = ROUND(RAND()*1000000);
+    location = ROUND(RAND()*1000000),
+    homepage = ROUND(RAND()*1000000);
 
 UPDATE account_emailaddress SET
     email = CONCAT(MD5(CONCAT(email, @common_hash_secret)), '@example.com');

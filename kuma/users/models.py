@@ -12,6 +12,8 @@ from allauth.account.signals import user_signed_up, email_confirmed
 from allauth.socialaccount.signals import social_account_removed
 from constance import config
 from timezones.fields import TimeZoneField
+from sundial.fields import TimezoneField as SundialTimezoneField
+from sundial.zones import COMMON_GROUPED_CHOICES
 from tower import ugettext_lazy as _
 from waffle import switch_is_active
 
@@ -61,35 +63,10 @@ class User(AbstractUser):
     Our custom user class that contains just a link to the user's profile
     right now.
     """
-    class Meta:
-        db_table = 'auth_user'
-
-    def wiki_revisions(self, count=5):
-        return (self.created_revisions.prefetch_related('document')
-                                      .defer('content', 'summary')
-                                      .order_by('-created')[:count])
-
-    @cached_property
-    def profile(self):
-        """
-        Returns site-specific profile for this user. Is locally cached.
-        """
-        return (UserProfile.objects.using(self._state.db)
-                                   .get(user__id__exact=self.id))
-
-
-class UserProfile(ModelBase):
-    """
-    The UserProfile *must* exist for each
-    django.contrib.auth.models.User object. This may be relaxed
-    once Dekiwiki isn't the definitive db for user info.
-
-    timezone and language fields are syndicated to Dekiwiki
-    """
     # Website fields defined for the profile form
     # TODO: Someday this will probably need to allow arbitrary per-profile
     # entries, and these will just be suggestions.
-    website_choices = [
+    WEBSITE_CHOICES = [
         ('website', dict(
             label=_(u'Website'),
             prefix='http://',
@@ -133,6 +110,86 @@ class UserProfile(ModelBase):
             fa_icon='icon-facebook',
         ))
     ]
+    timezone = SundialTimezoneField(null=True, blank=True,
+                                    verbose_name=_(u'Timezone'),
+                                    choices=COMMON_GROUPED_CHOICES)
+    locale = LocaleField(null=True, blank=True, db_index=True,
+                         verbose_name=_(u'Language'))
+    homepage = models.URLField(
+        max_length=255, blank=True, default='',
+        error_messages={
+            'invalid': _(u'This URL has an invalid format. '
+                         u'Valid URLs look like '
+                         u'http://example.com/my_page.')})
+    title = models.CharField(_(u'Title'), max_length=255, default='',
+                             blank=True)
+    fullname = models.CharField(_(u'Name'), max_length=255, default='',
+                                blank=True)
+    organization = models.CharField(_(u'Organization'), max_length=255,
+                                    default='', blank=True)
+    location = models.CharField(_(u'Location'), max_length=255, default='',
+                                blank=True)
+    bio = models.TextField(_(u'About Me'), blank=True)
+
+    irc_nickname = models.CharField(_(u'IRC nickname'), max_length=255,
+                                    default='', blank=True)
+
+    tags = NamespacedTaggableManager(_(u'Tags'), blank=True)
+
+    # should this user receive contentflagging emails?
+    content_flagging_email = models.BooleanField(default=False)
+
+    # HACK: Grab-bag field for future expansion in profiles
+    # We can store arbitrary data in here and later migrate to relational
+    # tables if the data ever needs to be indexed & queried. Otherwise,
+    # this keeps things nicely denormalized. Ideally, access to this field
+    # should be gated through accessors on the model to make that transition
+    # easier.
+    misc = JSONField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'auth_user'
+
+    @property
+    def websites(self):
+        if 'websites' not in self.misc:
+            self.misc['websites'] = {}
+        return self.misc['websites']
+
+    @websites.setter
+    def websites(self, value):
+        self.misc['websites'] = value
+
+    @cached_property
+    def is_beta_tester(self):
+        return (config.BETA_GROUP_NAME in
+                self.groups.values_list('name', flat=True))
+
+    @cached_property
+    def is_banned(self):
+        return self.bans.filter(is_active=True).exists()
+
+    def active_ban(self):
+        if self.is_banned:
+            return self.bans.filter(is_active=True)[:1][0]
+
+    def wiki_revisions(self, count=5):
+        return (self.created_revisions.prefetch_related('document')
+                                      .defer('content', 'summary')
+                                      .order_by('-created')[:count])
+
+    def allows_editing_by(self, user):
+        return user.is_staff or user.is_superuser or user.pk == self.pk
+
+
+class UserProfile(ModelBase):
+    """
+    The UserProfile *must* exist for each
+    django.contrib.auth.models.User object. This may be relaxed
+    once Dekiwiki isn't the definitive db for user info.
+
+    timezone and language fields are syndicated to Dekiwiki
+    """
     # This could be a ForeignKey, except wikidb might be
     # a different db
     deki_user_id = models.PositiveIntegerField(default=0,
@@ -183,42 +240,6 @@ class UserProfile(ModelBase):
 
     def get_absolute_url(self):
         return self.user.get_absolute_url()
-
-    @property
-    def websites(self):
-        if 'websites' not in self.misc:
-            self.misc['websites'] = {}
-        return self.misc['websites']
-
-    @websites.setter
-    def websites(self, value):
-        self.misc['websites'] = value
-
-    @cached_property
-    def beta_tester(self):
-        return (config.BETA_GROUP_NAME in
-                self.user.groups.values_list('name', flat=True))
-
-    @property
-    def is_banned(self):
-        return self.user.bans.filter(is_active=True).exists()
-
-    def active_ban(self):
-        if self.is_banned:
-            return self.user.bans.filter(is_active=True)[:1][0]
-
-    def allows_editing_by(self, user):
-        if user == self.user:
-            return True
-        if user.is_staff or user.is_superuser:
-            return True
-        return False
-
-
-@receiver(models.signals.post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created and not kwargs.get('raw', False):
-        p, created = UserProfile.objects.get_or_create(user=instance)
 
 
 @receiver(models.signals.post_save, sender=settings.AUTH_USER_MODEL)

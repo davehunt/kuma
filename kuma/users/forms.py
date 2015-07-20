@@ -4,7 +4,6 @@ import time
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseServerError
-from django.contrib.auth import get_user_model
 
 import basket
 from basket.base import BasketException
@@ -15,7 +14,7 @@ from taggit.utils import parse_tags
 from tower import ugettext_lazy as _
 
 from .constants import USERNAME_CHARACTERS, USERNAME_REGEX
-from .models import UserProfile
+from .models import User
 
 PRIVACY_REQUIRED = _(u'You must agree to the privacy policy.')
 
@@ -136,7 +135,7 @@ class UserBanForm(forms.Form):
     reason = forms.CharField(widget=forms.Textarea)
 
 
-class UserProfileEditForm(forms.ModelForm):
+class UserEditForm(forms.ModelForm):
     """
     The main form to edit user profile data.
 
@@ -156,14 +155,14 @@ class UserProfileEditForm(forms.ModelForm):
                                 error_message=USERNAME_CHARACTERS)
 
     class Meta:
-        model = UserProfile
+        model = User
         fields = ('fullname', 'title', 'organization', 'location',
                   'locale', 'timezone', 'bio', 'irc_nickname', 'interests')
 
     def __init__(self, *args, **kwargs):
-        super(UserProfileEditForm, self).__init__(*args, **kwargs)
+        super(UserEditForm, self).__init__(*args, **kwargs)
         # Dynamically add URLFields for all sites defined in the model.
-        sites = kwargs.get('sites', UserProfile.website_choices)
+        sites = kwargs.get('sites', User.WEBSITE_CHOICES)
         for name, meta in sites:
             self.fields['websites_%s' % name] = forms.RegexField(regex=meta['regex'], required=False)
             self.fields['websites_%s' % name].widget.attrs['placeholder'] = meta['prefix']
@@ -184,9 +183,8 @@ class UserProfileEditForm(forms.ModelForm):
         new_username = self.cleaned_data['username']
 
         if (self.instance is not None and
-                get_user_model().objects
-                                .exclude(pk=self.instance.user.pk)
-                                .filter(username=new_username)
-                                .exists()):
+                User.objects.exclude(pk=self.instance.pk)
+                            .filter(username=new_username)
+                            .exists()):
             raise forms.ValidationError(_('Username already in use.'))
         return new_username

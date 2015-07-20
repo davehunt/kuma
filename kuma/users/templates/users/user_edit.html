@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% from 'includes/common_macros.html' import newsletter_widget, li_field %}
 
-{% set accounts = social_accounts(profile.user) %}
+{% set accounts = social_accounts(user) %}
+{% set is_me = request.user.pk == user.pk %}
 
 {% block body_attributes %}{% endblock %}
 
-{% block bodyclass %}profile profile-edit{% endblock %}
+{% block bodyclass %}user user-edit{% endblock %}
 
 {% block title %}{{ page_title(_('Edit Your Profile')) }}{% endblock %}
 
@@ -13,7 +14,7 @@
     {{ super() }}
     {{ css('demostudio') }}
     {{ css('jquery-ui') }}
-    {{ css('profile') }}
+    {{ css('users') }}
     {{ css('newsletter') }}
     {{ css('submission') }}
 {% endblock %}
@@ -22,7 +23,7 @@
     {{ super() }}
     {{ js('demostudio') }}
     {{ js('libs/tagit') }}
-    {{ js('profile') }}
+    {{ js('users') }}
     {{ js('newsletter',) }}
 {% endblock %}
 
@@ -34,69 +35,69 @@
 
       <div class="column-2 smaller">
         <figure class="acc-avatar">
-          <img src="{{ gravatar_url(profile.user, size=200) }}" alt="{{ profile.user.username }}" width="200" height="200" class="profile-photo avatar" />
+          <img src="{{ gravatar_url(user, size=200) }}" alt="{{ user.username }}" width="200" height="200" class="user-photo avatar" />
           <figcaption>
               {{ _('Change your avatar at') }} <a href="http://gravatar.com" rel="external">gravatar.com</a>
           </figcaption>
         </figure>
         <ul>
-            <li><a href="{{ profile.user.get_absolute_url() }}">{{ _('View profile') }}</a></li>
+            <li><a href="{{ user.get_absolute_url() }}">{{ _('View profile') }}</a></li>
           {# TODO: Implement account deletion #}
           {# <li class="delete"><a href="#">{{ _('Delete my profile') }}</a></li> #}
         </ul>
       </div>
 
-      {% if request.user != profile.user %}
+      {% if not is_me %}
       <div class="notification warning">
       {% trans %}You're editing a different profile than your own. Please take care!{% endtrans %}
       </div>
       {% endif %}
 
-      <div id="profile-edit" class="column-half">
-        <h1 class="profile-title">{% include 'socialaccount/snippets/login_service_icon.html' %}{{ profile.user.username }}</h1>
+      <div id="user-edit" class="column-half">
+        <h1 class="user-title">{% include 'socialaccount/snippets/login_service_icon.html' %}{{ user.username }}</h1>
 
               <fieldset class="section notitle" id="personal">
                 <ul>
                   <li id="field-beta" class="field">
-                    <label for="{{ profile_form.beta.id_for_label }}">{{ profile_form.beta.label }}</label> {{ profile_form.beta }}
+                    <label for="{{ user_form.beta.id_for_label }}">{{ user_form.beta.label }}</label> {{ user_form.beta }}
                     <p class="field-note">{{ _('We\'d love to have your feedback on site changes! Beta testers get access to new features first and we send the occasional email asking for help testing specific things.') }}</p>
                   </li>
                   <li id="field_email" class="field type_email required">
                     <label>{{ _('Primary Email') }}</label>
-                    {{ profile.user.email }} <a href="{{ url('account_email') }}">{{ _('Edit email') }}</a>
+                    {{ user.email }} <a href="{{ url('account_email') }}">{{ _('Edit email') }}</a>
                   </li>
-                  {{ li_field(profile_form, 'username') }}
-                  {{ li_field(profile_form, 'fullname') }}
-                  {{ li_field(profile_form, 'title') }}
-                  {{ li_field(profile_form, 'organization') }}
-                  {{ li_field(profile_form, 'location') }}
-                  {{ li_field(profile_form, 'locale') }}
-                  {{ li_field(profile_form, 'timezone') }}
-                  {{ li_field(profile_form, 'irc_nickname') }}
+                  {{ li_field(user_form, 'username') }}
+                  {{ li_field(user_form, 'fullname') }}
+                  {{ li_field(user_form, 'title') }}
+                  {{ li_field(user_form, 'organization') }}
+                  {{ li_field(user_form, 'location') }}
+                  {{ li_field(user_form, 'locale') }}
+                  {{ li_field(user_form, 'timezone') }}
+                  {{ li_field(user_form, 'irc_nickname') }}
 
-                  <li class="wordcount{{ ' error' if profile_form.bio.errors }}">
-                    <label for="{{ profile_form.bio.id_for_label }}">{{ _('About me') }} <span class="field-note"><b id="bio_wordcount" class="counter">150</b> {{ _('words remaining') }}</span></label>
-                    {{ profile_form.bio }}
-                    {{ profile_form.bio.errors }}
+                  <li class="wordcount{{ ' error' if user_form.bio.errors }}">
+                    <label for="{{ user_form.bio.id_for_label }}">{{ _('About me') }} <span class="field-note"><b id="bio_wordcount" class="counter">150</b> {{ _('words remaining') }}</span></label>
+                    {{ user_form.bio }}
+                    {{ user_form.bio.errors }}
                   </li>
 
-                  <li class="{{ ' error' if profile_form.interests.errors }}">
-                    <label for="{{ profile_form.interests.id_for_label }}">{{ _('Interests (tags)') }}</label>
+                  <li class="{{ ' error' if user_form.interests.errors }}">
+                    <label for="{{ user_form.interests.id_for_label }}">{{ _('Interests (tags)') }}</label>
                     <p class="field-note">{{ _('Separate tags with commas or spaces. Join multi-word tags with double quotes, like "web standards".') }}</p>
-                    {{ profile_form.interests }}
-                    {{ profile_form.interests.errors }}
+                    {{ user_form.interests }}
+                    {{ user_form.interests.errors }}
                   </li>
 
-                  <li class="{{ ' error' if profile_form.expertise.errors }}">
-                    <label for="{{ profile_form.expertise.id_for_label }}">{{ _('Areas of expertise') }}</label>
+                  <li class="{{ ' error' if user_form.expertise.errors }}">
+                    <label for="{{ user_form.expertise.id_for_label }}">{{ _('Areas of expertise') }}</label>
                     <p class="field-note">{{ _('Add your interests first, then declare yourself an expert in selected topics.') }}</p>
-                    {{ profile_form.expertise }}
-                    {{ profile_form.expertise.errors }}
+                    {{ user_form.expertise }}
+                    {{ user_form.expertise.errors }}
                   </li>
                 </ul>
               </fieldset>
 
-              <fieldset class="section" id="profiles">
+              <fieldset class="section" id="users">
                 <legend><b>{{ _('My Profiles') }}</b></legend>
                 <ul>
                   <li id="field_websites_persona" class="field site persona">
@@ -113,26 +114,26 @@
                     <div class="field-account"></div>
                     {% endif %}
                   </li>
-                  {% for site_name, site_meta in profile.website_choices %}
+                  {% for site_name, site_meta in user.WEBSITE_CHOICES %}
                     {% if site_name == 'github' %}
                       <li id="field_websites_github" class="field site github">
                       {% if accounts.github %}
-                        <label for="{{ profile_form.websites_github.id_for_label }}"><i class="icon-github" aria-hidden="true"></i>GitHub</label>
+                        <label for="{{ user_form.websites_github.id_for_label }}"><i class="icon-github" aria-hidden="true"></i>GitHub</label>
                         <a class="field-management" href="{{ url('socialaccount_connections') }}">{{ _('Change') }}</a>
                         <div class="field-account">
                           {% for github_account in accounts.github %}{% if github_account.extra_data %}{{ github_account.get_profile_url() }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}
                         </div>
                       {% else %}
-                          <label for="{{ profile_form.websites_github.id_for_label }}"><i class="icon-github" aria-hidden="true"></i>GitHub
+                          <label for="{{ user_form.websites_github.id_for_label }}"><i class="icon-github" aria-hidden="true"></i>GitHub
                           </label>
                           <a class="field-management" href="{{ provider_login_url('github', process='connect', next=next_url) }}">
                             {{ _('Use your GitHub account to sign in.') }}
                           </a>
-                          {{ profile_form.websites_github }}
+                          {{ user_form.websites_github }}
                       {% endif %}
                       </li>
                     {% else %}
-                     {{ li_field(profile_form,
+                     {{ li_field(user_form,
                                 'websites_{name}' | f(name=site_name),
                                 classes='site {name}' | f(name=site_name),
                                 label=site_meta.label,
@@ -144,7 +145,7 @@
 
       </div>
 
-      <div class="column-4"><div class="profile-newsletter-container">
+      <div class="column-4"><div class="user-newsletter-container">
         {{ newsletter_widget(newsletter_form) }}
         <button type="submit" class="positive">{{ _('Save Changes') }}<i aria-hidden="true" class="icon-save"></i></button>
       </div></div>

@@ -86,7 +86,7 @@ define([
             libLogin.completePersonaWindow(remote).then(function() {
 
                 return remote
-                    .findByCssSelector('.oauth-logged-in-profile')
+                    .findByCssSelector('.oauth-logged-in-user')
                     .then(function(element) {
                         poll.until(element, 'isDisplayed')
                                 .then(function() {
@@ -94,7 +94,7 @@ define([
                                                 .click()
                                                 .then(function() {
                                                     return remote
-                                                                .findById('edit-profile')
+                                                                .findById('edit-user')
                                                                 .click()
                                                                 .end()
                                                                 .findByCssSelector('.fm-submit button[type=submit]')

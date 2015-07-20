@@ -4,26 +4,18 @@ from nose.plugins.attrib import attr
 from kuma.wiki.tests import revision
 
 from ..helpers import gravatar_url
-from ..models import UserBan, UserProfile
-from . import profile, UserTestCase
+from ..models import UserBan, User
+from . import UserTestCase
 
 
-class TestUserProfile(UserTestCase):
-
-    def test_user_profile(self):
-        """user.profile returns what you'd expect."""
-        user = self.user_model.objects.all()[0]
-        p = profile(user)
-
-        eq_(p, user.profile)
+class TestUser(UserTestCase):
 
     def test_websites(self):
-        """A list of websites can be maintained on a UserProfile"""
+        """A list of websites can be maintained on a user"""
         user = self.user_model.objects.get(username='testuser')
-        profile = UserProfile.objects.get(user=user)
 
         # Property should start off as an empty dict()
-        sites = profile.websites
+        sites = user.websites
         eq_({}, sites)
 
         # Assemble a set of test sites.
@@ -40,8 +32,8 @@ class TestUserProfile(UserTestCase):
         sites['website'] = test_sites['website']
         sites['bad'] = 'bad'
         del sites['bad']
-        profile.websites['twitter'] = test_sites['twitter']
-        profile.websites.update(dict(
+        user.websites['twitter'] = test_sites['twitter']
+        user.websites.update(dict(
             github=test_sites['github'],
             stackoverflow=test_sites['stackoverflow'],
             mozillians=test_sites['mozillians'],
@@ -49,20 +41,19 @@ class TestUserProfile(UserTestCase):
         ))
 
         # Save and make sure a fresh fetch works as expected
-        profile.save()
-        p2 = UserProfile.objects.get(user=user)
+        user.save()
+        p2 = User.objects.get(pk=user.pk)
         eq_(test_sites, p2.websites)
 
         # One more set-and-save to be sure this survives a round-trip
         test_sites['google'] = 'http://google.com'
         p2.websites['google'] = test_sites['google']
         p2.save()
-        p3 = UserProfile.objects.get(user=user)
+        p3 = User.objects.get(pk=user.pk)
         eq_(test_sites, p3.websites)
 
     def test_linkedin_urls(self):
         user = self.user_model.objects.get(username='testuser')
-        profile = UserProfile.objects.get(user=user)
 
         linkedin_urls = [
             'https://in.linkedin.com/in/testuser',
@@ -71,18 +62,17 @@ class TestUserProfile(UserTestCase):
         ]
 
         for url in linkedin_urls:
-            profile.websites.update(dict(linkedin=url,))
-            profile.save()
-            new_profile = UserProfile.objects.get(user=user)
-            eq_(url, new_profile.websites['linkedin'])
+            user.websites.update(dict(linkedin=url,))
+            user.save()
+            new_user = User.objects.get(pk=user.pk)
+            eq_(url, new_user.websites['linkedin'])
 
     def test_irc_nickname(self):
         """We've added IRC nickname as a profile field.
         Make sure it shows up."""
         user = self.user_model.objects.get(username='testuser')
-        profile_from_db = UserProfile.objects.get(user=user)
-        ok_(hasattr(profile_from_db, 'irc_nickname'))
-        eq_('testuser', profile_from_db.irc_nickname)
+        ok_(hasattr(user, 'irc_nickname'))
+        eq_('testuser', user.irc_nickname)
 
     def test_unicode_email_gravatar(self):
         """Bug 689056: Unicode characters in email addresses shouldn't break
@@ -97,11 +87,10 @@ class TestUserProfile(UserTestCase):
     def test_locale_timezone_fields(self):
         """We've added locale and timezone fields. Verify defaults."""
         user = self.user_model.objects.get(username='testuser')
-        profile_from_db = UserProfile.objects.get(user=user)
-        ok_(hasattr(profile_from_db, 'locale'))
-        ok_(profile_from_db.locale == 'en-US')
-        ok_(hasattr(profile_from_db, 'timezone'))
-        ok_(str(profile_from_db.timezone) == 'US/Pacific')
+        ok_(hasattr(user, 'locale'))
+        ok_(user.locale == 'en-US')
+        ok_(hasattr(user, 'timezone'))
+        ok_(str(user.timezone) == 'US/Pacific')
 
     def test_wiki_revisions(self):
         user = self.user_model.objects.get(username='testuser')
@@ -122,8 +111,8 @@ class BanTestCase(UserTestCase):
         ban.save()
         testuser_banned = self.user_model.objects.get(username='testuser')
         ok_(not testuser_banned.is_active)
-        ok_(testuser_banned.profile.is_banned)
-        ok_(testuser_banned.profile.active_ban().by == admin)
+        ok_(testuser_banned.is_banned)
+        ok_(testuser_banned.active_ban().by == admin)
 
         ban.is_active = False
         ban.save()
@@ -134,11 +123,11 @@ class BanTestCase(UserTestCase):
         ban.save()
         testuser_banned = self.user_model.objects.get(username='testuser')
         ok_(not testuser_banned.is_active)
-        ok_(testuser_unbanned.profile.is_banned)
-        ok_(testuser_unbanned.profile.active_ban())
+        ok_(testuser_unbanned.is_banned)
+        ok_(testuser_unbanned.active_ban())
 
         ban.delete()
         testuser_unbanned = self.user_model.objects.get(username='testuser')
         ok_(testuser_unbanned.is_active)
-        ok_(not testuser_unbanned.profile.is_banned)
-        ok_(testuser_unbanned.profile.active_ban() is None)
+        ok_(not testuser_unbanned.is_banned)
+        ok_(testuser_unbanned.active_ban() is None)
